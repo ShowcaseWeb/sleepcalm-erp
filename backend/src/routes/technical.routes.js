@@ -1,0 +1,12 @@
+const router = require('express').Router();
+const ctrl = require('../controllers/technical.controller');
+const { authenticate, authorize } = require('../middlewares/auth');
+const { uploadAttachments } = require('../middlewares/upload');
+router.use(authenticate);
+router.get('/', ctrl.list);
+router.get('/:id', ctrl.getById);
+router.post('/', authorize('CREATE'), ctrl.create);
+router.put('/:id', authorize('EDIT'), ctrl.update);
+router.patch('/:id/approve', authorize('APPROVE'), ctrl.approve);
+router.post('/:id/attachments', uploadAttachments.array('files', 10), ctrl.addAttachment);
+module.exports = router;

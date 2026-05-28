@@ -1,0 +1,10 @@
+const router = require('express').Router();
+const ctrl = require('../controllers/donation.controller');
+const { authenticate, authorize } = require('../middlewares/auth');
+router.use(authenticate);
+router.get('/', ctrl.list);
+router.get('/:id', ctrl.getById);
+router.post('/', authorize('CREATE'), ctrl.create);
+router.patch('/:id/approve', authorize('APPROVE'), ctrl.approve);
+router.put('/:id', authorize('EDIT'), ctrl.update);
+module.exports = router;

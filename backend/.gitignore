@@ -1,0 +1,14 @@
+node_modules/
+.env
+logs/
+*.log
+uploads/
+.wrangler/
+dist/
+build/
+.nyc_output/
+coverage/
+*.pid
+*.seed
+*.pid.lock
+prisma/generated/

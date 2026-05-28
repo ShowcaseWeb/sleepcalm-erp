@@ -1,0 +1,791 @@
+// ============================================================
+// SleepCalm ERP - Prisma Schema Completo
+// ============================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "fullTextIndex"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMERAÇÕES
+// ============================================================
+
+enum UserRole {
+  OWNER
+  ADMIN
+  SUPERVISOR
+  ANALYST
+  FINANCIAL
+  SAC
+  OPERATIONAL
+  VIEWER
+}
+
+enum Permission {
+  CREATE
+  EDIT
+  DELETE
+  APPROVE
+  VIEW
+  EXPORT
+  CLOSE_CASES
+  MANAGE_USERS
+  MANAGE_FINANCIAL
+  MANAGE_SKUS
+  MANAGE_SUPPLIERS
+  MANAGE_CARRIERS
+  VIEW_AUDIT
+  VIEW_REPORTS
+}
+
+enum DevolutionStatus {
+  OPEN
+  IN_ANALYSIS
+  AWAITING_COLLECTION
+  COLLECTION_SCHEDULED
+  IN_TRANSIT
+  RECEIVED
+  IN_INSPECTION
+  AWAITING_FINANCIAL
+  REFUND_APPROVED
+  REFUND_PROCESSED
+  EXCHANGE_SENT
+  FINALIZED
+  CANCELLED
+}
+
+enum DevolutionType {
+  FULL_REFUND
+  PARTIAL_REFUND
+  EXCHANGE
+  COLLECTION
+  RETURN_TO_FACTORY
+  REUSE
+  DONATION
+  DISPOSAL
+  RESEND
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum SaleChannel {
+  SLEEPCALM_SITE
+  MERCADO_LIVRE
+  SHOPEE
+  AMAZON
+  MAGALU
+  VIA_VAREJO
+  AMERICANAS
+  OUTROS
+}
+
+enum TechnicalProblem {
+  SINKING
+  STRUCTURAL_DEFECT
+  TEAR
+  STAINS
+  ODOR
+  WRONG_PRODUCT
+  DAMAGED_PRODUCT
+  INADEQUATE_COMFORT
+  INCORRECT_DENSITY
+  SEWING_DEFECT
+  FOAM_PROBLEM
+  SPRING_PROBLEM
+  FABRIC_PROBLEM
+  DAMAGED_PACKAGING
+  OTHER
+}
+
+enum LalamoveStatus {
+  PENDING
+  REQUESTED
+  ASSIGNING_DRIVER
+  ON_GOING
+  PICKED_UP
+  COMPLETED
+  CANCELLED
+  REJECTED
+  EXPIRED
+}
+
+enum DonationStatus {
+  PENDING
+  APPROVED
+  DELIVERED
+  CANCELLED
+}
+
+enum NotificationType {
+  SLA_ALERT
+  FINANCIAL_ALERT
+  STATUS_CHANGE
+  MENTION
+  COMMENT
+  ASSIGNMENT
+  SYSTEM
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXPORT
+  APPROVE
+  REJECT
+  STATUS_CHANGE
+  FILE_UPLOAD
+  FILE_DELETE
+}
+
+// ============================================================
+// USUÁRIOS E AUTENTICAÇÃO
+// ============================================================
+
+model User {
+  id              String    @id @default(uuid())
+  name            String
+  email           String    @unique
+  password        String
+  role            UserRole  @default(VIEWER)
+  avatar          String?
+  phone           String?
+  department      String?
+  isActive        Boolean   @default(true)
+  lastLoginAt     DateTime?
+  lastLoginIp     String?
+  refreshToken    String?
+  passwordResetToken String?
+  passwordResetExpires DateTime?
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relações
+  permissions       UserPermission[]
+  devolutionsCreated Devolution[]    @relation("CreatedBy")
+  devolutionsAssigned Devolution[]  @relation("AssignedTo")
+  comments          Comment[]
+  notifications     Notification[]  @relation("UserNotifications")
+  sentNotifications Notification[]  @relation("SentBy")
+  auditLogs         AuditLog[]
+  financialRecords  FinancialRecord[]
+  technicalAnalyses TechnicalAnalysis[]
+  lalamoveOrders    LalamoveOrder[]
+  donations         Donation[]      @relation("DonationCreatedBy")
+  approvedDonations Donation[]      @relation("DonationApprovedBy")
+
+  @@map("users")
+  @@index([email])
+  @@index([role])
+}
+
+model UserPermission {
+  id         String     @id @default(uuid())
+  userId     String
+  permission Permission
+  grantedBy  String?
+  grantedAt  DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permission])
+  @@map("user_permissions")
+}
+
+// ============================================================
+// SKUs E PRODUTOS
+// ============================================================
+
+model SKU {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  description String?
+  category    String?
+  brand       String?  @default("SleepCalm")
+  unitValue   Decimal  @db.Decimal(10, 2)
+  weight      Decimal? @db.Decimal(8, 3)
+  dimensions  String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relações
+  supplierId   String?
+  supplier     Supplier? @relation(fields: [supplierId], references: [id])
+  devolutionItems DevolutionItem[]
+
+  @@map("skus")
+  @@index([code])
+  @@index([name])
+}
+
+// ============================================================
+// FORNECEDORES
+// ============================================================
+
+model Supplier {
+  id         String   @id @default(uuid())
+  name       String
+  tradeName  String?
+  cnpj       String?  @unique
+  email      String?
+  phone      String?
+  address    String?
+  city       String?
+  state      String?
+  zipCode    String?
+  contactPerson String?
+  isActive   Boolean  @default(true)
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  skus        SKU[]
+  devolutions Devolution[]
+
+  @@map("suppliers")
+  @@index([name])
+  @@index([cnpj])
+}
+
+// ============================================================
+// TRANSPORTADORAS
+// ============================================================
+
+model Carrier {
+  id           String   @id @default(uuid())
+  name         String
+  cnpj         String?  @unique
+  email        String?
+  phone        String?
+  website      String?
+  trackingUrl  String?
+  contactPerson String?
+  contractNumber String?
+  averageDeliveryDays Int?
+  slaHours     Int?
+  costPerKg    Decimal? @db.Decimal(8, 2)
+  isActive     Boolean  @default(true)
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  devolutions  Devolution[]
+  lalamoveOrders LalamoveOrder[]
+
+  @@map("carriers")
+  @@index([name])
+}
+
+// ============================================================
+// CLIENTES
+// ============================================================
+
+model Customer {
+  id         String   @id @default(uuid())
+  name       String
+  email      String?
+  phone      String?
+  cpf        String?  @unique
+  address    String?
+  city       String?
+  state      String?
+  zipCode    String?
+  notes      String?
+  totalOrders Int     @default(0)
+  totalRefunds Int    @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  devolutions Devolution[]
+
+  @@map("customers")
+  @@index([email])
+  @@index([cpf])
+  @@index([name])
+}
+
+// ============================================================
+// DEVOLUÇÕES (CORE DO SISTEMA)
+// ============================================================
+
+model Devolution {
+  id                String           @id @default(uuid())
+  caseNumber        String           @unique
+  
+  // Cliente
+  customerId        String
+  customer          Customer         @relation(fields: [customerId], references: [id])
+  
+  // Pedido
+  orderNumber       String
+  saleChannel       SaleChannel
+  orderDate         DateTime?
+  
+  // Status e Tipo
+  status            DevolutionStatus @default(OPEN)
+  type              DevolutionType
+  priority          Priority         @default(MEDIUM)
+  
+  // Motivo
+  reasonCategory    String
+  reasonDetail      String?
+  customerDescription String?
+  
+  // Fornecedor
+  supplierId        String?
+  supplier          Supplier?        @relation(fields: [supplierId], references: [id])
+  
+  // Transportadora
+  carrierId         String?
+  carrier           Carrier?         @relation(fields: [carrierId], references: [id])
+  trackingCode      String?
+  
+  // SLA
+  slaHours          Int              @default(72)
+  slaDueDate        DateTime?
+  slaBreached       Boolean          @default(false)
+  
+  // Responsável
+  assignedToId      String?
+  assignedTo        User?            @relation("AssignedTo", fields: [assignedToId], references: [id])
+  createdById       String
+  createdBy         User             @relation("CreatedBy", fields: [createdById], references: [id])
+  
+  // Datas
+  receivedAt        DateTime?
+  inspectedAt       DateTime?
+  resolvedAt        DateTime?
+  closedAt          DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  // Valores
+  totalValue        Decimal          @db.Decimal(10, 2) @default(0)
+  refundAmount      Decimal?         @db.Decimal(10, 2)
+  recoveredAmount   Decimal?         @db.Decimal(10, 2)
+  logisticsCost     Decimal?         @db.Decimal(10, 2)
+  
+  // Observações
+  internalNotes     String?
+  
+  // Observações Finais
+  finalConclusion   String?
+  
+  // Relações
+  items             DevolutionItem[]
+  attachments       Attachment[]
+  comments          Comment[]
+  financialRecords  FinancialRecord[]
+  technicalAnalysis TechnicalAnalysis?
+  fiscalDocuments   FiscalDocument[]
+  lalamoveOrders    LalamoveOrder[]
+  statusHistory     StatusHistory[]
+  donation          Donation?
+
+  @@map("devolutions")
+  @@index([caseNumber])
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+  @@index([customerId])
+  @@index([slaBreached])
+  @@index([assignedToId])
+}
+
+model DevolutionItem {
+  id           String     @id @default(uuid())
+  devolutionId String
+  devolution   Devolution @relation(fields: [devolutionId], references: [id], onDelete: Cascade)
+  skuId        String?
+  sku          SKU?       @relation(fields: [skuId], references: [id])
+  skuCode      String
+  productName  String
+  quantity     Int
+  unitValue    Decimal    @db.Decimal(10, 2)
+  totalValue   Decimal    @db.Decimal(10, 2)
+  condition    String?
+  notes        String?
+  createdAt    DateTime   @default(now())
+
+  @@map("devolution_items")
+}
+
+// ============================================================
+// HISTÓRICO DE STATUS
+// ============================================================
+
+model StatusHistory {
+  id           String           @id @default(uuid())
+  devolutionId String
+  devolution   Devolution       @relation(fields: [devolutionId], references: [id], onDelete: Cascade)
+  fromStatus   DevolutionStatus?
+  toStatus     DevolutionStatus
+  changedById  String?
+  changedByName String?
+  reason       String?
+  notes        String?
+  createdAt    DateTime         @default(now())
+
+  @@map("status_history")
+  @@index([devolutionId])
+}
+
+// ============================================================
+// COMENTÁRIOS INTERNOS
+// ============================================================
+
+model Comment {
+  id           String     @id @default(uuid())
+  devolutionId String
+  devolution   Devolution @relation(fields: [devolutionId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  content      String
+  isInternal   Boolean    @default(true)
+  mentions     String[]
+  parentId     String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@map("comments")
+  @@index([devolutionId])
+}
+
+// ============================================================
+// ANÁLISE TÉCNICA
+// ============================================================
+
+model TechnicalAnalysis {
+  id           String             @id @default(uuid())
+  devolutionId String             @unique
+  devolution   Devolution         @relation(fields: [devolutionId], references: [id], onDelete: Cascade)
+  analystId    String
+  analyst      User               @relation(fields: [analystId], references: [id])
+  
+  problems     TechnicalProblem[]
+  description  String
+  conclusion   String?
+  recommendation String?
+  
+  approved     Boolean?
+  approvedById String?
+  approvedAt   DateTime?
+  approverNotes String?
+  
+  productCondition String?
+  repairPossible   Boolean?
+  estimatedLoss    Decimal?  @db.Decimal(10, 2)
+  
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  attachments  TechnicalAttachment[]
+
+  @@map("technical_analyses")
+}
+
+model TechnicalAttachment {
+  id                  String            @id @default(uuid())
+  technicalAnalysisId String
+  technicalAnalysis   TechnicalAnalysis @relation(fields: [technicalAnalysisId], references: [id], onDelete: Cascade)
+  filename            String
+  originalName        String
+  mimeType            String
+  size                Int
+  path                String
+  description         String?
+  createdAt           DateTime          @default(now())
+
+  @@map("technical_attachments")
+}
+
+// ============================================================
+// REGISTROS FINANCEIROS
+// ============================================================
+
+model FinancialRecord {
+  id              String     @id @default(uuid())
+  devolutionId    String
+  devolution      Devolution @relation(fields: [devolutionId], references: [id], onDelete: Cascade)
+  createdById     String
+  createdBy       User       @relation(fields: [createdById], references: [id])
+  
+  type            String     // REFUND, RECOVERY, LOGISTICS, EXCHANGE, DONATION, DISPOSAL, OPERATIONAL
+  description     String
+  amount          Decimal    @db.Decimal(10, 2)
+  isExpense       Boolean    @default(true)
+  
+  approved        Boolean    @default(false)
+  approvedAt      DateTime?
+  approvedById    String?
+  
+  paymentMethod   String?
+  paymentDate     DateTime?
+  paymentProof    String?
+  
+  notes           String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@map("financial_records")
+  @@index([devolutionId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// ============================================================
+// DOCUMENTOS FISCAIS
+// ============================================================
+
+model FiscalDocument {
+  id           String     @id @default(uuid())
+  devolutionId String
+  devolution   Devolution @relation(fields: [devolutionId], references: [id], onDelete: Cascade)
+  
+  type         String     // NF_ORIGINAL, NFD, XML, PDF, OTHER
+  number       String?
+  series       String?
+  issueDate    DateTime?
+  value        Decimal?   @db.Decimal(10, 2)
+  
+  filename     String?
+  originalName String?
+  mimeType     String?
+  size         Int?
+  path         String?
+  
+  isValid      Boolean?
+  validationNotes String?
+  
+  createdAt    DateTime   @default(now())
+
+  @@map("fiscal_documents")
+}
+
+// ============================================================
+// ANEXOS GERAIS
+// ============================================================
+
+model Attachment {
+  id           String     @id @default(uuid())
+  devolutionId String
+  devolution   Devolution @relation(fields: [devolutionId], references: [id], onDelete: Cascade)
+  
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  path         String
+  category     String?    // PHOTO, VIDEO, DOCUMENT, PROOF, OTHER
+  description  String?
+  uploadedById String?
+  
+  createdAt    DateTime   @default(now())
+
+  @@map("attachments")
+  @@index([devolutionId])
+}
+
+// ============================================================
+// LALAMOVE
+// ============================================================
+
+model LalamoveOrder {
+  id              String         @id @default(uuid())
+  devolutionId    String
+  devolution      Devolution     @relation(fields: [devolutionId], references: [id])
+  carrierId       String?
+  carrier         Carrier?       @relation(fields: [carrierId], references: [id])
+  requestedById   String
+  requestedBy     User           @relation(fields: [requestedById], references: [id])
+  
+  lalamoveOrderId String?        @unique
+  shareLink       String?
+  
+  status          LalamoveStatus @default(PENDING)
+  
+  // Endereços
+  pickupAddress   String
+  pickupContact   String
+  pickupPhone     String
+  pickupNotes     String?
+  
+  deliveryAddress String
+  deliveryContact String
+  deliveryPhone   String
+  deliveryNotes   String?
+  
+  // Veículo e Motorista
+  vehicleType     String?
+  driverName      String?
+  driverPhone     String?
+  driverPlate     String?
+  
+  // Valores
+  quotedPrice     Decimal?  @db.Decimal(10, 2)
+  finalPrice      Decimal?  @db.Decimal(10, 2)
+  
+  // Datas
+  scheduledAt     DateTime?
+  pickedUpAt      DateTime?
+  completedAt     DateTime?
+  
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("lalamove_orders")
+  @@index([devolutionId])
+  @@index([status])
+}
+
+// ============================================================
+// DOAÇÕES
+// ============================================================
+
+model Donation {
+  id              String         @id @default(uuid())
+  devolutionId    String?        @unique
+  devolution      Devolution?    @relation(fields: [devolutionId], references: [id])
+  
+  createdById     String
+  createdBy       User           @relation("DonationCreatedBy", fields: [createdById], references: [id])
+  approvedById    String?
+  approvedBy      User?          @relation("DonationApprovedBy", fields: [approvedById], references: [id])
+  
+  institution     String
+  institutionContact String?
+  institutionPhone String?
+  
+  products        Json
+  estimatedValue  Decimal        @db.Decimal(10, 2)
+  
+  status          DonationStatus @default(PENDING)
+  reason          String?
+  
+  approvedAt      DateTime?
+  deliveredAt     DateTime?
+  
+  proofDocument   String?
+  notes           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@map("donations")
+}
+
+// ============================================================
+// NOTIFICAÇÕES
+// ============================================================
+
+model Notification {
+  id           String           @id @default(uuid())
+  userId       String
+  user         User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  sentById     String?
+  sentBy       User?            @relation("SentBy", fields: [sentById], references: [id])
+  
+  type         NotificationType
+  title        String
+  message      String
+  data         Json?
+  
+  isRead       Boolean          @default(false)
+  readAt       DateTime?
+  
+  devolutionId String?
+  
+  createdAt    DateTime         @default(now())
+
+  @@map("notifications")
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+// ============================================================
+// AUDITORIA
+// ============================================================
+
+model AuditLog {
+  id         String      @id @default(uuid())
+  userId     String?
+  user       User?       @relation(fields: [userId], references: [id])
+  userName   String?
+  userEmail  String?
+  userRole   String?
+  
+  action     AuditAction
+  entity     String
+  entityId   String?
+  
+  oldValues  Json?
+  newValues  Json?
+  changes    Json?
+  
+  ip         String?
+  userAgent  String?
+  endpoint   String?
+  method     String?
+  
+  success    Boolean     @default(true)
+  errorMsg   String?
+  
+  createdAt  DateTime    @default(now())
+
+  @@map("audit_logs")
+  @@index([userId])
+  @@index([action])
+  @@index([entity])
+  @@index([createdAt])
+}
+
+// ============================================================
+// CONFIGURAÇÕES DO SISTEMA
+// ============================================================
+
+model SystemConfig {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  type      String   @default("STRING")
+  category  String?
+  label     String?
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@map("system_configs")
+}
+
+// ============================================================
+// MOTIVOS DE DEVOLUÇÃO
+// ============================================================
+
+model DevolutionReason {
+  id          String   @id @default(uuid())
+  category    String
+  description String
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@map("devolution_reasons")
+}

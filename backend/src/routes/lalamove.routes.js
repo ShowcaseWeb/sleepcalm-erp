@@ -1,0 +1,11 @@
+const router = require('express').Router();
+const ctrl = require('../controllers/lalamove.controller');
+const { authenticate, authorize } = require('../middlewares/auth');
+router.use(authenticate);
+router.get('/', ctrl.list);
+router.get('/stats', ctrl.getStats);
+router.get('/:id', ctrl.getById);
+router.post('/', authorize('CREATE'), ctrl.create);
+router.patch('/:id/status', authorize('EDIT'), ctrl.updateStatus);
+router.delete('/:id', authorize('DELETE'), ctrl.remove);
+module.exports = router;

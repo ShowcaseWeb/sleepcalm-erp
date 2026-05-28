@@ -1,0 +1,10 @@
+const router = require('express').Router();
+const ctrl = require('../controllers/carrier.controller');
+const { authenticate, authorize } = require('../middlewares/auth');
+router.use(authenticate);
+router.get('/', ctrl.list);
+router.get('/:id', ctrl.getById);
+router.post('/', authorize('MANAGE_CARRIERS'), ctrl.create);
+router.put('/:id', authorize('MANAGE_CARRIERS'), ctrl.update);
+router.delete('/:id', authorize('DELETE'), ctrl.remove);
+module.exports = router;
