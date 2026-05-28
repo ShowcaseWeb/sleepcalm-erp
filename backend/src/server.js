@@ -158,6 +158,19 @@ const startServer = async () => {
   res.json(user);
 });
 
+app.get("/seed", async (req, res) => {
+  const bcrypt = require("bcryptjs");
+
+  const user = await prisma.user.create({
+    data: {
+      email: "admin@sleepcalm.com",
+      password: await bcrypt.hash("123456", 10)
+    }
+  });
+
+  res.json(user);
+});
+
     app.listen(PORT, '0.0.0.0', () => {
       logger.info(`
 ╔══════════════════════════════════════════════════════════════╗
