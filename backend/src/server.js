@@ -117,6 +117,45 @@ app.get('/health', async (req, res) => {
 // ============================================================
 
 app.use('/api/v1', routes);
+app.get('/seed', async (req, res) => {
+  try {
+    const bcrypt = require('bcryptjs');
+
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        email: 'admin@sleepcalm.com',
+      },
+    });
+
+    if (existingUser) {
+      return res.json({
+        success: true,
+        message: 'Usuário admin já existe.',
+      });
+    }
+
+    const user = await prisma.user.create({
+      data: {
+        email: 'admin@sleepcalm.com',
+        password: await bcrypt.hash('123456', 10),
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Usuário admin criado com sucesso.',
+      user: {
+        id: user.id,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
 
 // ============================================================
 // ROTA 404
