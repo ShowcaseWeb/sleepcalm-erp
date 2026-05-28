@@ -283,7 +283,7 @@ export default function DevolutionsPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         {dev.slaBreached && (
-                          <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" title="SLA Vencido" />
+                          <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
                         )}
                         <Link href={`/dashboard/devolutions/${dev.id}`}>
                           <span className="font-mono text-xs font-medium text-primary hover:underline cursor-pointer">
