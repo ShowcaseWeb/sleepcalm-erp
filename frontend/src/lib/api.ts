@@ -177,7 +177,7 @@ export const donationAPI = {
   list: (params?: any) => api.get('/donations', { params }),
   getById: (id: string) => api.get(`/donations/${id}`),
   create: (data: any) => api.post('/donations', data),
-  approve: (id: string, data: any) => api.patch(`/donations/${id}/approve`, data),
+  approve: (id: string, data?: any) => api.patch(`/donations/${id}/approve`, data ?? {}),
   update: (id: string, data: any) => api.put(`/donations/${id}`, data),
 };
 
@@ -208,7 +208,7 @@ export const fiscalAPI = {
   getByDevolution: (devolutionId: string) => api.get(`/fiscal/devolution/${devolutionId}`),
   getById: (id: string) => api.get(`/fiscal/${id}`),
   create: (devolutionId: string, formData: FormData) =>
-    api.post(`/fiscal/${devolutionId}`, formData, {
+    api.post(`/fiscal/devolution/${devolutionId}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
   remove: (id: string) => api.delete(`/fiscal/${id}`),

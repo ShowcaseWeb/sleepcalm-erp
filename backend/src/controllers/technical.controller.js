@@ -96,6 +96,21 @@ exports.approve = async (req, res) => {
   return successResponse(res, analysis, `Análise técnica ${approved ? 'aprovada' : 'reprovada'}.`);
 };
 
+// Alias semântico para PATCH /:id/reject — reutiliza a lógica de approve com approved=false
+exports.reject = async (req, res) => {
+  const { reason, approverNotes } = req.body;
+  const analysis = await prisma.technicalAnalysis.update({
+    where: { id: req.params.id },
+    data: {
+      approved: false,
+      approvedById: req.user.id,
+      approvedAt: new Date(),
+      approverNotes: approverNotes || reason || null,
+    },
+  });
+  return successResponse(res, analysis, 'Análise técnica reprovada.');
+};
+
 exports.addAttachment = async (req, res) => {
   const { id } = req.params;
   const { description } = req.body;

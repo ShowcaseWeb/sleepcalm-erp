@@ -86,13 +86,13 @@ export default function UsersPage() {
   });
 
   const { mutate: toggleActive } = useMutation({
-    mutationFn: ({ id, active }: any) => active ? userAPI.activate(id) : userAPI.deactivate(id),
+    mutationFn: ({ id }: any) => userAPI.toggleActive(id),
     onSuccess: () => { toast.success('Status alterado'); queryClient.invalidateQueries({ queryKey: ['users'] }); },
     onError: () => toast.error('Erro ao alterar status'),
   });
 
   const { mutate: updatePermissions, isPending: permPending } = useMutation({
-    mutationFn: ({ id, permissions }: any) => userAPI.updatePermissions(id, { permissions }),
+    mutationFn: ({ id, permissions }: any) => userAPI.updatePermissions(id, permissions),
     onSuccess: () => {
       toast.success('Permissões atualizadas');
       setPermissionsTarget(null);
@@ -364,7 +364,7 @@ export default function UsersPage() {
                         </button>
                       )}
                       {u.id !== currentUser?.id && (
-                        <button onClick={() => toggleActive({ id: u.id, active: !u.active })}
+                        <button onClick={() => toggleActive({ id: u.id })}
                           className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-yellow-400 hover:bg-yellow-500/10 transition-colors">
                           {u.active ? <ToggleRight className="w-3.5 h-3.5" /> : <ToggleLeft className="w-3.5 h-3.5" />}
                         </button>

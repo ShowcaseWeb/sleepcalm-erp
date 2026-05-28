@@ -8,5 +8,6 @@ router.get('/:id', ctrl.getById);
 router.post('/', authorize('CREATE'), ctrl.create);
 router.put('/:id', authorize('EDIT'), ctrl.update);
 router.patch('/:id/approve', authorize('APPROVE'), ctrl.approve);
+router.patch('/:id/reject', authorize('APPROVE'), ctrl.reject);
 router.post('/:id/attachments', uploadAttachments.array('files', 10), ctrl.addAttachment);
 module.exports = router;

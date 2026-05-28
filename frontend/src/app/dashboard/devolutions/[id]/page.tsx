@@ -886,7 +886,7 @@ function DonationTab({ devolutionId, donations, queryKey }: any) {
   });
 
   const { mutate: approve } = useMutation({
-    mutationFn: (id: string) => donationAPI.approve(id),
+    mutationFn: (id: string) => donationAPI.approve(id, {}),
     onSuccess: () => { toast.success('Doação aprovada'); queryClient.invalidateQueries({ queryKey }); },
     onError: () => toast.error('Erro ao aprovar'),
   });
